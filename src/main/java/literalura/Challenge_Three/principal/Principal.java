@@ -8,6 +8,7 @@ import literalura.Challenge_Three.servicio.ConvertirDatos;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Principal {
     private Scanner lectura = new Scanner(System.in);
@@ -37,6 +38,9 @@ public class Principal {
                     3. Mostrar autores
                     4. Buscar autores vivos en un determinado año
                     5. Cantidad de libros en un determinado idioma
+                    6. Estadísticas de las descargas
+                    7. Top 10 libros más descargados
+                    8. Buscar autor por su nombre
                     0. Salir
                     ************************************************
                     """;
@@ -64,13 +68,31 @@ public class Principal {
                 case 5:
                     cantidadLibros();
                     break;
+                case 6:
+                    estadisticas();
+                    break;
+                case 7:
+                    mostrarTop();
+                    break;
+                case 8:
+                    buscarAutor();
+                    break;
             }
             System.out.println();
         }
 
     }
 
+    private void listaLibrosBD(){
+        listaDeLibros = libroRepositorio.findAll();
+    }
+
+    private void listaAutoresBD(){
+        listaDeAutores = autorRepositorio.findAll();
+    }
+
     private void buscarLibro(){
+        listaLibrosBD();
         System.out.print("Ingresar el título del libro: ");
         String titulo = lectura.nextLine();
         String json = consumir.obtenerDatos(URL_BASE+"?search="+titulo.replace(" ","+"));
@@ -81,7 +103,7 @@ public class Principal {
             System.out.println("\n>> Libro encontrado:");
             Autor autor = Libro.evaluarAutor(datosLibro.get().autor());
             Libro libro = new Libro(datosLibro.get());
-            Optional<Libro> buscarLibro = libroRepositorio.findAll().stream()
+            Optional<Libro> buscarLibro = listaDeLibros.stream()
                     .filter(l->l.getTitulo().contains(libro.getTitulo()))
                     .findFirst();
             if (buscarLibro.isEmpty()){
@@ -103,13 +125,13 @@ public class Principal {
     }
 
     private void mostrarLibros(){
-        listaDeLibros = libroRepositorio.findAll();
+        listaLibrosBD();
         System.out.println(">> Lista de libros registrados:");
         mostrar(listaDeLibros);
     }
 
     private void mostrarAutores(){
-        listaDeAutores = autorRepositorio.findAll();
+        listaAutoresBD();
         System.out.println(">> Lista de autores registrados:");
         mostrar(listaDeAutores);
     }
@@ -146,6 +168,37 @@ public class Principal {
             }else{
                 System.out.println("\n>> Hay 0 libros registrados.");
             }
+        }
+    }
+
+    private void  estadisticas(){
+        listaLibrosBD();
+        DoubleSummaryStatistics estadistica = listaDeLibros.stream()
+                .filter(l->l.getNumeroDeDescargas()>0)
+                .collect(Collectors.summarizingDouble(Libro::getNumeroDeDescargas));
+        System.out.println(">> Media de las descargas es: " + estadistica.getAverage());
+        System.out.println(">> Libro más descargado tiene: " + (int) estadistica.getMax());
+        System.out.println(">> Libro menos descargado tiene: " + (int) estadistica.getMin());
+    }
+
+    private void mostrarTop() {
+        List<Libro> librosBD = libroRepositorio.findTop10ByOrderByNumeroDeDescargasDesc();
+        System.out.println(">> Top 10 libros más descargados:");
+        mostrar(librosBD);
+    }
+
+    private void buscarAutor(){
+        listaAutoresBD();
+        System.out.print("Ingresar el nombre del autor: ");
+        String nombre = lectura.nextLine();
+        Optional<Autor> buscarAutor = listaDeAutores.stream()
+                .filter(a->a.getNombre().toLowerCase().contains(nombre.toLowerCase()))
+                .findFirst();
+        if(buscarAutor.isPresent()){
+            System.out.println("\n>> Autor encontrado:");
+            System.out.println(buscarAutor.get());
+        }else{
+            System.out.println("\n>> Autor no encontrado.");
         }
     }
 
